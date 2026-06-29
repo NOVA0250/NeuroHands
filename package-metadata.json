@@ -1,0 +1,19 @@
+{
+  "name": "NeuroHands",
+  "version": "1.0.0",
+  "description": "Production-quality hand tracking and gesture recognition web app",
+  "author": "Your Name",
+  "license": "MIT",
+  "keywords": [
+    "hand-tracking",
+    "gesture-recognition",
+    "mediapipe",
+    "computer-vision",
+    "react",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NOVA0250/NeuroHands.git"
+  }
+}
