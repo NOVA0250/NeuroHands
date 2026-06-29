@@ -1,4 +1,4 @@
-import { Hand, HandLandmark } from '../types';
+import { HandLandmark } from '../types';
 
 export const calculateDistance = (
   p1: HandLandmark,

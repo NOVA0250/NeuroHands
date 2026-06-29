@@ -26,16 +26,19 @@ export const detectHands = (videoElement: HTMLVideoElement): DetectionResult | n
   try {
     const result = handLandmarker.detectForVideo(videoElement, Date.now());
 
-    const hands: Hand[] = result.landmarks.map((landmarks, index) => ({
-      landmarks: landmarks.map((l) => ({
-        x: l.x,
-        y: l.y,
-        z: l.z,
-        visibility: l.visibility || 1,
-      })),
-      handedness: result.handedness[index].displayName as 'Left' | 'Right',
-      confidence: result.handedness[index].score,
-    }));
+    const hands: Hand[] = result.landmarks.map((landmarks, index) => {
+      const handedness = result.handedness[index];
+      return {
+        landmarks: landmarks.map((l) => ({
+          x: l.x,
+          y: l.y,
+          z: l.z,
+          visibility: l.visibility || 1,
+        })),
+        handedness: (handedness[0]?.categoryName || 'Right') as 'Left' | 'Right',
+        confidence: handedness[0]?.score || 0,
+      };
+    });
 
     // Calculate FPS
     const now = Date.now();

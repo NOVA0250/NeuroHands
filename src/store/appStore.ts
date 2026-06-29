@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Gesture, GestureEffect, AppConfig, Hand } from '../types';
+import { Gesture, AppConfig, Hand } from '../types';
 
 interface AppState {
   gestures: Gesture[];
@@ -10,7 +10,7 @@ interface AppState {
   recordingSamples: Hand[][];
   config: AppConfig;
   selectedGesture: Gesture | null;
-  detectedGesture: { gesture: Gesture; confidence: number } | null;
+  detectedGesture: { gesture: Gesture; confidence: number; handIndex: number } | null;
   lastDetectionTime: number;
   
   // Gesture management
@@ -29,7 +29,7 @@ interface AppState {
   setCurrentHands: (hands: Hand[]) => void;
   setFps: (fps: number) => void;
   setConfig: (config: Partial<AppConfig>) => void;
-  setDetectedGesture: (gesture: { gesture: Gesture; confidence: number } | null) => void;
+  setDetectedGesture: (gesture: { gesture: Gesture; confidence: number; handIndex: number } | null) => void;
   
   // Persistence
   loadFromStorage: () => void;
