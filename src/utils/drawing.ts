@@ -1,1 +1,62 @@
-import { Hand } from '../types';\n\nconst HAND_CONNECTIONS = [\n  [0, 1], [1, 2], [2, 3], [3, 4],\n  [0, 5], [5, 6], [6, 7], [7, 8],\n  [0, 9], [9, 10], [10, 11], [11, 12],\n  [0, 13], [13, 14], [14, 15], [15, 16],\n  [0, 17], [17, 18], [18, 19], [19, 20],\n];\n\nconst COLORS = {\n  left: '#ff6b6b',\n  right: '#4ecdc4',\n  landmark: '#00f7ff',\n};\n\nexport const drawHand = (\n  ctx: CanvasRenderingContext2D,\n  hand: Hand,\n  canvasWidth: number,\n  canvasHeight: number\n) => {\n  const color = hand.handedness === 'Left' ? COLORS.left : COLORS.right;\n\n  // Draw connections\n  ctx.strokeStyle = color;\n  ctx.lineWidth = 2;\n  ctx.lineCap = 'round';\n  ctx.lineJoin = 'round';\n\n  for (const [start, end] of HAND_CONNECTIONS) {\n    const startLandmark = hand.landmarks[start];\n    const endLandmark = hand.landmarks[end];\n\n    if (startLandmark && endLandmark) {\n      ctx.beginPath();\n      ctx.moveTo(startLandmark.x * canvasWidth, startLandmark.y * canvasHeight);\n      ctx.lineTo(endLandmark.x * canvasWidth, endLandmark.y * canvasHeight);\n      ctx.stroke();\n    }\n  }\n\n  // Draw landmarks\n  ctx.fillStyle = COLORS.landmark;\n  for (const landmark of hand.landmarks) {\n    const radius = 4;\n    ctx.beginPath();\n    ctx.arc(landmark.x * canvasWidth, landmark.y * canvasHeight, radius, 0, 2 * Math.PI);\n    ctx.fill();\n  }\n};\n\nexport const drawMultipleHands = (\n  ctx: CanvasRenderingContext2D,\n  hands: Hand[],\n  canvasWidth: number,\n  canvasHeight: number\n) => {\n  for (const hand of hands) {\n    drawHand(ctx, hand, canvasWidth, canvasHeight);\n  }\n};\n
+import { Hand } from '../types';
+
+const HAND_CONNECTIONS = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [0, 9], [9, 10], [10, 11], [11, 12],
+  [0, 13], [13, 14], [14, 15], [15, 16],
+  [0, 17], [17, 18], [18, 19], [19, 20],
+];
+
+const COLORS = {
+  left: '#ff6b6b',
+  right: '#4ecdc4',
+  landmark: '#00f7ff',
+};
+
+export const drawHand = (
+  ctx: CanvasRenderingContext2D,
+  hand: Hand,
+  canvasWidth: number,
+  canvasHeight: number
+) => {
+  const color = hand.handedness === 'Left' ? COLORS.left : COLORS.right;
+
+  // Draw connections
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  for (const [start, end] of HAND_CONNECTIONS) {
+    const startLandmark = hand.landmarks[start];
+    const endLandmark = hand.landmarks[end];
+
+    if (startLandmark && endLandmark) {
+      ctx.beginPath();
+      ctx.moveTo(startLandmark.x * canvasWidth, startLandmark.y * canvasHeight);
+      ctx.lineTo(endLandmark.x * canvasWidth, endLandmark.y * canvasHeight);
+      ctx.stroke();
+    }
+  }
+
+  // Draw landmarks
+  ctx.fillStyle = COLORS.landmark;
+  for (const landmark of hand.landmarks) {
+    const radius = 4;
+    ctx.beginPath();
+    ctx.arc(landmark.x * canvasWidth, landmark.y * canvasHeight, radius, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+};
+
+export const drawMultipleHands = (
+  ctx: CanvasRenderingContext2D,
+  hands: Hand[],
+  canvasWidth: number,
+  canvasHeight: number
+) => {
+  for (const hand of hands) {
+    drawHand(ctx, hand, canvasWidth, canvasHeight);
+  }
+};
