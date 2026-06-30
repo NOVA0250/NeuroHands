@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from './store/appStore';
 import { initializeHandLandmarker, detectHands, isHandLandmarkerReady } from './services/mediapipe';
 import { matchGestures } from './services/gestureRecognition';
@@ -142,7 +142,7 @@ function App() {
         {/* Tabs */}
         <div className="flex space-x-2 mb-8 overflow-x-auto pb-2">
           {[
-            { id: 'home' as const, label: '📹 Live' },
+            { id: 'home' as const, label: '🎥 Live' },
             { id: 'create' as const, label: '✏️ Create' },
             { id: 'library' as const, label: '📚 Library' },
             { id: 'settings' as const, label: '⚙️ Settings' },
@@ -197,7 +197,7 @@ function App() {
             {activeTab === 'library' && (
               <GestureLibrary
                 gestures={store.customGestures}
-                onSelectGesture={() => {
+                onSelectGesture={(g) => {
                   setActiveTab('settings');
                 }}
                 onDeleteGesture={store.removeGesture}
