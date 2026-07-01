@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Hand, Gesture } from '../types';
 import { playTone } from '../services/audio';
 
@@ -11,6 +11,7 @@ interface GestureRecorderProps {
   onAddSample: (hands: Hand[]) => void;
   onSaveGesture: (gesture: Gesture) => void;
   recordingDuration: number;
+  isActive?: boolean; // true when the Create tab is the active tab
 }
 
 export const GestureRecorder: React.FC<GestureRecorderProps> = ({
@@ -22,13 +23,25 @@ export const GestureRecorder: React.FC<GestureRecorderProps> = ({
   onAddSample,
   onSaveGesture,
   recordingDuration,
+  isActive = true,
 }) => {
   const [gestureName, setGestureName] = useState('');
   const [handedness, setHandedness] = useState<'Left' | 'Right' | 'Both'>('Both');
   const [recordingTime, setRecordingTime] = useState(0);
 
+  const isVisible = useRef(isActive);
   useEffect(() => {
-    if (!isRecording) return;
+    isVisible.current = isActive;
+
+    // If the tab becomes inactive mid-recording, stop so we don't keep
+    // sampling a hand feed the user can no longer see/control.
+    if (!isActive && isRecording) {
+      onStopRecording();
+    }
+  }, [isActive, isRecording, onStopRecording]);
+
+  useEffect(() => {
+    if (!isRecording || !isVisible.current) return;
 
     const interval = setInterval(() => {
       setRecordingTime((t) => t + 1);
@@ -38,9 +51,10 @@ export const GestureRecorder: React.FC<GestureRecorderProps> = ({
   }, [isRecording]);
 
   useEffect(() => {
-    if (!isRecording || currentHands.length === 0) return;
+    if (!isRecording || currentHands.length === 0 || !isVisible.current) return;
 
     const sampleInterval = setInterval(() => {
+      if (!isVisible.current) return; // tab/visibility may have changed mid-interval
       onAddSample(currentHands);
       playTone(800, 50);
     }, 100);
@@ -55,6 +69,7 @@ export const GestureRecorder: React.FC<GestureRecorderProps> = ({
   }, [recordingTime, recordingDuration, isRecording, onStopRecording]);
 
   const handleStartRecording = () => {
+    if (!isVisible.current) return;
     if (currentHands.length === 0) {
       alert('Please show a hand to the camera first');
       return;

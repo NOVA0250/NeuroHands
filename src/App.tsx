@@ -21,6 +21,20 @@ function App() {
 
   const store = useStore();
   const allGestures = [...store.gestures, ...store.customGestures];
+  const latestStore = useRef(store);
+  const latestGestures = useRef(allGestures);
+
+  useEffect(() => {
+    latestStore.current = store;
+    latestGestures.current = allGestures;
+   }, [store, allGestures]);
+  // Live tab specifically (controls GestureDisplay visibility)
+  const isHomeVisible = activeTab === 'home';
+  // Webcam preview needs to be visible on both Live and Create tabs
+  const isWebcamVisible = activeTab === 'home' || activeTab === 'create';
+  // Detection (hand tracking) is needed on both Live and Create tabs,
+  // since GestureRecorder relies on store.currentHands being populated.
+  const isDetectionNeeded = activeTab === 'home' || activeTab === 'create';
 
   // Initialize MediaPipe
   useEffect(() => {
@@ -56,64 +70,121 @@ function App() {
   }, []);
 
   // Detection loop
-  useEffect(() => {
-    if (!videoRef.current || !isHandLandmarkerReady() || !canvasRef.current) return;
+useEffect(() => {
+  if (!isDetectionNeeded) {
+    if (detectionIntervalRef.current) {
+      cancelAnimationFrame(detectionIntervalRef.current);
+      detectionIntervalRef.current = undefined;
+    }
+    return;
+  }
+
+  let cancelled = false;
+
+  const startDetection = async () => {
+    // Wait for MediaPipe
+    while (!isHandLandmarkerReady()) {
+      if (cancelled) return;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    // Wait for video
+    while (
+      !videoRef.current ||
+      videoRef.current.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+      videoRef.current.videoWidth === 0
+    ) {
+      if (cancelled) return;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    if (!canvasRef.current || !videoRef.current) return;
 
     const canvas = canvasRef.current;
-    canvas.width = videoRef.current.videoWidth || 1280;
-    canvas.height = videoRef.current.videoHeight || 720;
 
     const detect = () => {
-      if (!videoRef.current) return;
+  if (cancelled) return;
 
-      const result = detectHands(videoRef.current);
-      if (result) {
-        store.setCurrentHands(result.hands);
-        store.setFps(result.fps);
+  const video = videoRef.current;
 
-        // Gesture matching
-        if (result.hands.length > 0) {
-          const matches = matchGestures(
-            result.hands,
-            allGestures,
-            store.config.confidenceThreshold
-          );
+  if (video) {
+    const result = detectHands(video);
 
-          if (matches.length > 0) {
-            const match = matches[0];
-            const timeSinceLastDetection = Date.now() - store.lastDetectionTime;
-            if (timeSinceLastDetection > store.config.cooldownTime) {
-              store.setDetectedGesture(match);
+    if (result) {
+      latestStore.current.setCurrentHands(result.hands);
+      latestStore.current.setFps(result.fps);
 
-              // Play sound
-              if (store.config.enableSound && match.gesture.soundUrl) {
-                playSound(match.gesture.soundUrl);
-              }
+      if (result.hands.length > 0) {
+        const matches = matchGestures(
+          result.hands,
+          latestGestures.current,
+          latestStore.current.config.confidenceThreshold
+        );
 
-              // Render effect
-              if (store.config.enableEffects && match.gesture.effect && effectCanvasRef.current) {
-                const renderer = new EffectRenderer(effectCanvasRef.current);
-                const hand = result.hands[match.handIndex];
-                const x = hand.landmarks[9].x * effectCanvasRef.current.width;
-                const y = hand.landmarks[9].y * effectCanvasRef.current.height;
-                renderer.renderEffect(match.gesture.effect, x, y);
-              }
+        if (matches.length > 0) {
+          const match = matches[0];
+
+          const timeSinceLastDetection =
+            Date.now() - latestStore.current.lastDetectionTime;
+
+          if (
+            timeSinceLastDetection >
+            latestStore.current.config.cooldownTime
+          ) {
+            latestStore.current.setDetectedGesture(match);
+
+            if (
+              latestStore.current.config.enableSound &&
+              match.gesture.soundUrl
+            ) {
+              playSound(match.gesture.soundUrl);
+            }
+
+            if (
+              latestStore.current.config.enableEffects &&
+              match.gesture.effect &&
+              effectCanvasRef.current
+            ) {
+              const renderer = new EffectRenderer(effectCanvasRef.current);
+
+              const hand = result.hands[match.handIndex];
+
+              renderer.renderEffect(
+                match.gesture.effect,
+                hand.landmarks[9].x *
+                  effectCanvasRef.current.width,
+                hand.landmarks[9].y *
+                  effectCanvasRef.current.height
+              );
             }
           }
         }
       }
+    } else {
+      latestStore.current.setCurrentHands([]);
+    }
+  }
 
-      detectionIntervalRef.current = requestAnimationFrame(detect);
-    };
+  detectionIntervalRef.current =
+    requestAnimationFrame(detect);
+};
 
-    detectionIntervalRef.current = requestAnimationFrame(detect);
+detectionIntervalRef.current =
+  requestAnimationFrame(detect);
 
-    return () => {
-      if (detectionIntervalRef.current) {
-        cancelAnimationFrame(detectionIntervalRef.current);
-      }
-    };
-  }, [allGestures, store]);
+}; // closes startDetection()
+
+startDetection();
+
+   return () => {
+    cancelled = true;
+
+    if (detectionIntervalRef.current) {
+      cancelAnimationFrame(detectionIntervalRef.current);
+      detectionIntervalRef.current = undefined;
+    }
+  };
+}, [isDetectionNeeded]);
 
   // Save to storage on changes
   useEffect(() => {
@@ -165,21 +236,26 @@ function App() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
-            {activeTab === 'home' && (
-              <>
-                activeTab === 'Live' && <WebcamDisplay
-                  videoRef={videoRef}
-                  canvasRef={canvasRef}
-                  hands={store.currentHands}
-                  fps={store.fps}
-                  isLoading={isLoading}
-                />
+            {/* WebcamDisplay stays mounted across tab switches. Visible (block)
+                on both Live and Create tabs so users can see their hand while
+                recording gestures; hidden on Library/Settings. isVisible controls
+                whether the camera/draw loop runs (matches detection needs). */}
+            <div className={isWebcamVisible ? 'block space-y-8' : 'hidden'}>
+              <WebcamDisplay
+                videoRef={videoRef}
+                canvasRef={canvasRef}
+                hands={store.currentHands}
+                fps={store.fps}
+                isLoading={isLoading}
+                isVisible={isDetectionNeeded}
+              />
+              {isHomeVisible && (
                 <GestureDisplay
                   detectedGesture={store.detectedGesture}
                   allGestures={allGestures}
                 />
-              </>
-            )}
+              )}
+            </div>
 
             {activeTab === 'create' && (
               <GestureRecorder
@@ -191,6 +267,7 @@ function App() {
                 onAddSample={store.addSample}
                 onSaveGesture={store.addGesture}
                 recordingDuration={store.config.recordingDuration}
+                isActive={activeTab === 'create'}
               />
             )}
 

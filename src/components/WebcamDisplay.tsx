@@ -8,6 +8,7 @@ interface WebcamDisplayProps {
   hands: Hand[];
   fps: number;
   isLoading: boolean;
+  isVisible: boolean;
 }
 
 export const WebcamDisplay: React.FC<WebcamDisplayProps> = ({
@@ -16,31 +17,58 @@ export const WebcamDisplay: React.FC<WebcamDisplayProps> = ({
   hands,
   fps,
   isLoading,
+  isVisible,
 }) => {
   const animationRef = useRef<number>();
+  const resizeCanvas = () => {
+    const canvas = canvasRef.current;
+      const video = videoRef.current;
+
+      if (!canvas || !video) return;
+
+      if (
+        canvas.width !== video.videoWidth ||
+        canvas.height !== video.videoHeight
+      ) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
+    };
+  const handsRef = useRef(hands);
+  const fpsRef = useRef(fps);
+  useEffect(() => {
+    handsRef.current = hands;
+  }, [hands]);
+  useEffect(() => {
+     fpsRef.current = fps;
+    }, [fps]);
 
   useEffect(() => {
+    if (!isVisible) {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = undefined;
+      }
+      return;
+    }
+
     const drawFrame = () => {
       const canvas = canvasRef.current;
       const video = videoRef.current;
 
       if (!canvas || !video) return;
-
+      resizeCanvas();
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Draw video
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      drawMultipleHands(ctx,handsRef.current,canvas.width,canvas.height);
 
-      // Draw hands
-      drawMultipleHands(ctx, hands, canvas.width, canvas.height);
-
-      // Draw FPS
       ctx.fillStyle = '#00f7ff';
       ctx.font = 'bold 16px sans-serif';
       ctx.shadowColor = 'rgba(0, 247, 255, 0.5)';
       ctx.shadowBlur = 10;
-      ctx.fillText(`FPS: ${Math.round(fps)}`, 10, 30);
+      ctx.fillText(`FPS: ${Math.round(fpsRef.current)}`, 10, 30);
       ctx.shadowBlur = 0;
 
       animationRef.current = requestAnimationFrame(drawFrame);
@@ -51,9 +79,20 @@ export const WebcamDisplay: React.FC<WebcamDisplayProps> = ({
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
+        animationRef.current = undefined;
       }
     };
-  }, [hands, fps, canvasRef, videoRef]);
+  }, [ isVisible]);
+
+  useEffect(() => {
+    if (!isVisible) return;
+     const video = videoRef.current;
+    if (video && video.paused) {
+       video.play().catch((err) => {
+        console.error("Failed to resume video:", err);
+      });
+   }
+  }, [isVisible]);
 
   return (
     <div className="relative w-full aspect-video bg-slate-900 rounded-lg overflow-hidden border border-slate-700">
