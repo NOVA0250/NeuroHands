@@ -167,7 +167,7 @@ function App() {
           <div className="lg:col-span-2 space-y-8">
             {activeTab === 'home' && (
               <>
-                <WebcamDisplay
+                activeTab === 'Live' && <WebcamDisplay
                   videoRef={videoRef}
                   canvasRef={canvasRef}
                   hands={store.currentHands}
