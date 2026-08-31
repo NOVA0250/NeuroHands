@@ -1,4 +1,4 @@
-```python
+
 import time
 import urllib.request
 from pathlib import Path
